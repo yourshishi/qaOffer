@@ -1,0 +1,178 @@
+redis：
+1、Redis 是一个基于内存的高性能key-value数据库。 
+ String字符串：以键值对 key-value 的形式进行存储的，一般用于：
+          1、存放用户（登录）信息；
+          2、存放文章详情和列表信息；
+          3、存放和累计网页的统计信息（存储 int 值）
+Hash（哈希）：将键值 (key) 和一个特殊的“哈希表”关联起来，这个“哈希表”表包含两列数据：字段和值。通常情况下字典类型会使用数组的方式来存储相关的数据，但发生哈希冲突时才会使用链表的结构来存储数据。
+List（列表）：使用链表结构存储的有序结构，它的元素插入会按照先后顺序存储到链表结构中，因此它的元素操作 (插入和删除) 时间复杂度为 O(1)，所以相对来说速度还是比较快的，但它的查询时间复杂度为 O(n)，因此查询可能会比较慢。
+Set（集合）：是一个无序并唯一的键值集合。
+         1、微博关注我的人和我关注的人都适合用集合存储，可以保证人员不会重复；
+         2、中奖人信息也适合用集合类型存储，这样可以保证一个人不会重复中奖。
+有序集合（sorted set）：相比于集合类型多了一个排序属性 score（分值），对于有序集合 ZSet 来说，每个存储元素相当于有两个值组成的，一个是有序结合的元素值，一个是排序值。有序集合的存储元素值也是不能重复的，但分值是可以重复的。
+          1、学生成绩排名；
+          2、粉丝列表，根据关注的先后时间排序。
+
+GEO（地理位置类型）用于实现查询附近的人、HyperLogLog（统计类型）用于高效的实现数据的去重统计（存在一定的误差
+Stream（流类型）主要应用于消息队列的实现。
+2、通过持久化机制把内存中的数据同步到硬盘文件来保证数据持久化。当Redis重启后通过把硬盘文件重新加载到内存，就能达到恢复数据的目的。
+3、redis快的原因：
+(一)纯内存操作
+(二)单线程操作，避免了频繁的上下文切换
+(三)采用了非阻塞I/O、多路复用机制。
+ Redis 在 4.0 之前单线程依然很快的原因：基于内存操作、数据结构简单、多路复用和非阻塞 I/O、避免了不必要的线程上下文切换。
+在 Redis 4.0 中已经添加了多线程的支持，主要体现在大数据的异步删除功能上，例如 unlink key、flushdb async、flushall async 等。
+Redis 6.0 新增了多线程 I/O 的读写并发能力，用于更好的提高 Redis 的性能。
+4、使用redis有哪些好处？ 　　
+   (1) 速度快，因为数据存在内存中，类似于HashMap，HashMap的优势就是查找和操作的时间复杂度都是O(1) 
+   (2) 支持丰富数据类型，支持string，list，set，sorted set，hash 
+   (3) 部分支持事务，操作都是原子性，所谓的原子性就是对数据的更改要么全部执行，要么全部不执行 。         
+         不保证原子性，部分支持事务，但是可以通过watch实现乐观锁
+   (4) 丰富的特性：可用于缓存消息，按key设置过期时间，过期后将会自动删除。
+
+5、常用操作：
+      keys *（查看所有数据） 、dbsize（查看键总数、 exists javastack java（查询查询多个，返回存在的个数）、del java javastack（删除多个，返回删除成功个数）、type javastack（查看类型）、rename key newkey（改名）、get key、set key value、
+
+6、redis和mysql的区别总结
+（1）类型上：mysql是关系型数据库，redis是缓存数据库
+（2）作用上：mysql用于持久化的存储数据到硬盘，功能强大，但是速度较慢
+                         redis用于存储使用较为频繁的数据到缓存中，读取速度快
+（3）需求上mysql和redis因为需求的不同，一般都是配合使用。
+
+7、解决hot key问题：
+     一、client端使用本地缓存；
+     二、利用分片算法的特性，对key进行打散处理（我们可以给hot key加上前缀或者后缀，把一个hotkey 的数量变成 redis 实例个数N的倍数M，从而由访问一个 redis key 变成访问 N * M 个redis key。 N*M 个 redis key 经过分片分布到不同的实例上，将访问量均摊到所有实例）；
+
+8、big key 造成集群数据量倾斜：对 big key 进行拆分。
+    一、如果big value 是个大list，可以拆成将list拆成。 
+    二、如果big value 是个大json 通过 mset 的方式：
+         //存：  mset key1, vlaue1, key2, vlaue2 ... keyN, valueN
+     //取：  mget key1, key2 ... keyN
+
+
+9、redis使用：（详情链接：https://mp.weixin.qq.com/s/Oz8yOcD54B6Pr3pCm9KnQg）
+尽量不要使用短连接；
+尽量避免big key的使用；
+限制使用内存大小，避免oom。
+避免使用keys *：这个命令是阻塞的，执行期间，其它任何命令在你的实例中都无法执行。
+业务不需要持久化的时候，可以关闭；
+设置key过期时间，并设置对应的回收策略；
+尽量不要在连接数比较高的场景下频繁使用info，获取redis服务器和客户端信息
+使用pipeline时，要及时接收请求处理结果，且pipeline不宜一次打包太多请求。
+禁用THP(透明内存大页) ，开启可能导致内存延迟。
+
+10、如何通过redis来限流：
+      我们可以使用 Redis 中的 ZSet（有序集合）加上滑动时间算法来实现简单的限流。比如往前取 60s 的时间，在这 60s 之内运行最大的访问数为 100，此时算法的执行逻辑为，先清除 60s 之前的所有请求记录，再计算当前集合内请求数量是否大于设定的最大请求数 100，如果大于则执行限流拒绝策略，否则插入本次请求记录并返回可以正常执行的标识给客户端。
+
+mysql
+参考： https://www.cnblogs.com/frankielf0921/p/5930743.html
+1、数据库的事务：
+      事务（transaction）是作为一个单元的一组有序的数据库操作。如果组中的所有操作都成功，则认为事务成功，如果一个操作失败，则事务将回滚， 该事务所有操作的影响都将取消。
+    共享锁、排他锁；行级锁、表级锁；乐观锁、悲观锁；
+     四大隔离级别 （mcc锁实现）
+        1.Read Committed（未提交读，可能引起脏读）
+        2.Repeatable Read（已读提交）
+        3.可重复读
+        4.Serializable（可串行化） 
+
+2、为什么说B+树比B树更适合数据库索引？
+        2.1  B+树与B树最大的区别在于：
+              1、 B+叶子结点包含全部关键字以及指向相应记录的指针，而且叶结点中的关键字按大小顺序排列，相邻叶结点用指针连接 
+                 （B树的非叶子节点存储实际记录的指针，而B+树的叶子节点存储实际记录的指针，B+树的叶子节点通过指针连起来了, 适合扫描区间和顺序查找。）
+              2、B+非叶结点仅存储其子树的最大（或最小）关键字，可以看成是索引。
+       2.2  B+树更适合外部存储。由于内结点不存放真正的数据（只是存放其子树的最大或最小的关键字，作为索引），一个结点可以存储更多的关键字，每个结点能索引的范围更大更精确，也意味着B+树单次磁盘IO的信息量大于B树，I/O的次数相对减少。
+       2.3  MySQL是一种关系型数据库，区间访问是常见的一种情况，B+树叶结点增加的链指针，加强了区间访问性，可使用在区间查询的场景；而使用B树则无法进行区间查找。
+
+
+
+
+
+3、数据库索引：是数据库管理系统中一个排序的数据结构，以协助快速查询、更新数据库表中数据。索引的实现通常使用B树及其变种B+树。
+      b/b+树是为了存储而设计的一种平衡多路查找树，高度比二叉树小，能够降低磁盘的I/O次数： n个节点的平衡二叉树的高度为H(即logn)，而n个节点的B/B+树的高度为logt((n+1)/2)+1； 
+    优点：
+      第一，通过创建唯一性索引，可以保证数据库表中每一行数据的唯一性。
+      第二，可以大大加快数据的检索速度，这也是创建索引的最主要的原因。
+      第三，通过使用索引，可以在查询的过程中，使用优化隐藏器，提高系统的性能。
+      第四，可以加速表和表之间的连接，特别是在实现数据的参考完整性方面特别有意义。
+      第五，在使用分组和排序子句进行数据检索时，同样可以显著减少查询中分组和排序的时间。
+      缺点
+       第一，创建索引和维护索引要耗费时间，这种时间随着数据量的增加而增加。
+       第二，索引需要占物理空间。
+       第三，当对表中的数据进行增加、删除和修改的时候，索引也要动态的维护，这样就降低了数据的维护速度。
+
+4、mysql的三大引擎是啥？
+            mysql常用的引擎有InnoDB，MyISAM，Memory，默认是InnoDB，InnoDB：磁盘表，支持事务，支持行级锁，B+Tree索引
+
+     你常用的mysql引擎有哪些？各引擎间有什么区别？ 
+         1）、InnoDB 支持事务，MyISAM 不支持
+         2）、MyISAM 适合查询以及插入为主的应用，InnoDB 适合频繁修改以及涉及到安全性较高的应用；
+         3）、MyISAM采用表级锁(table-level locking)。InnoDB支持行级锁(row-level locking)和表级锁,默认为行级锁。
+         4）、清空整个表时，InnoDB 是一行一行的删除，效率非常慢。MyISAM 则会重建表；
+
+6、CREATE INDEX 实例
+    本例会创建一个简单的索引，名为 "PersonIndex"，在 Person 表的 LastName 列：
+            CREATE INDEX PersonIndex   ON Person (LastName) 
+
+    如果您希望以降序索引某个列中的值，您可以在列名称之后添加保留字 DESC：
+            CREATE INDEX PersonIndex   ON Person (LastName DESC) 
+
+    假如您希望索引不止一个列，您可以在括号中列出这些列的名称，用逗号隔开：
+            CREATE INDEX PersonIndex   ON Person (LastName, FirstName)
+
+
+7、mysql表比较大，查询慢，如何优化？
+     1.SQL语句优化（查看慢查询：有无监控报警；show processlist ；查看慢查询日志；explain来了解SQL执行的状态） 
+     2.索引优化  
+     3.数据库结构优化  
+     4.服务器硬件优化（ssd、raid）  
+     5.分表，读写表分离，根据手机号等值模运算分表
+     6.使用缓存
+
+8、mysql和nosql的优缺点：（参考：http://www.mamicode.com/info-detail-861022.html）
+      mysql优点：通用化、技术成熟、 可以进行join等复杂查询；缺点：扩展性差，无法进行分布式存储。
+      nosql 优点：高并发，支持分布式，易于扩展，可伸缩。      缺点：事务支持较弱、 join等复杂操作能力较弱。
+
+9、sql语句：
+   9.0 现在学生小测验成绩表table1（id，uid，name，score，stdate), 其属性分别表示自增id、学生学号、学生姓名、成绩和统计日期。查询每天成绩最高分，输出日期、最高分。
+          select  stdate, max(score) from table1    group by stdate;
+
+   9.1用一条SQL语句：查询出每门课都大于80分的学生姓名
+        select distinct name from table group by name having count(kecheng)>=3 and min(fenshu)>=80;
+   或者：
+            select name from (select name,min(score) from student group by name having min(score)>80) stu;
+
+            select count(ordid) from odertable group by(uderid) bettewn ;
+
+    9.2 求工资第二高的人：
+       select max(Salary) SecondHighestSalary from Employee where Salary <> (select max(Salary) from Employee );
+
+     9.3 建一个mysql表：
+CREATE TABLE `quicker_perf_plan` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT '自身id',
+  `jobname` varchar(255) DEFAULT NULL COMMENT '脚本名称',
+  `createdata` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=4896 DEFAULT CHARSET=utf8mb4;
+
+
+
+es：
+1、是一个非关系型数据库，也是一个搜索引擎。数据存储的最小单位是文档，本质上是一个JSON 文本。
+2、Elasticsearch分别为每个字段都建立了一个倒排索引。在倒排索引中(以word为索引，正排索引以文档），通过Term索引可以找到Term在Term Dictionary中的位置，进而找到Posting List，有了倒排列表就可以根据ID找到文档了。存储结构：word：（出现文档id，文档中的次数，文档中的位置）
+
+3、查询的api为java语言的lucence全文检索引擎工具包，是一个全文检索引擎的架构，提供了完整的查询引擎和索引引擎，部分文本分析引擎。
+4、一般是Elasticsearch（日志存储）+ Logstash（日志收集） + Kibana（数据展示）配置做日志分析使用。
+5、kafka适合大批量高并发，mq适合做异步调用。
+
+
+influxdb相关名词：
+1、带时间标签的数据也称为时间序列数据。
+2、时序数据库就是存放时序数据的数据库，并且需要支持时序数据的快速写入、持久化、多纬度的聚合查询等基本功能。
+database：数据库；
+measurement(metric)：数据库中的表；
+points：表里面的一行数据。
+influxDB中独有的一些概念: Point由时间戳（time）、数据（field）和标签（tags）组成。
+time：  每条数据记录的时间，也是数据库自动生成的主索引；
+fields：各种记录的值；
+tags：  各种有索引的属性。
+series(序列)： 所有在数据库中的数据，都需要通过图表来表示，series表示这个表里面的所有的数据可以在图标上画成几条线（注：线条的个数由tags排列组合计算出来）
